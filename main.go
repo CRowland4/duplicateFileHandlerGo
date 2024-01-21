@@ -18,22 +18,32 @@ type Path struct {
 
 func main() {
 	if len(os.Args) != 2 {
+		fmt.Println(os.Args)
 		fmt.Println("Directory is not specified")
 		return
 	}
 
 	root := os.Args[1]
 	paths := getPaths(root, getFormat())
-	paths = sortPaths(paths, getSortingOrder())
+
+	sortingOrder := getSortingOrder()
+	paths = sortPaths(paths, sortingOrder)
 	printPaths(paths)
 	if wantsToCheckForDuplicates() {
-		checkForDuplicates(paths)
+		checkForDuplicates(paths, sortingOrder)
 	}
 
 	return
 }
 
-func checkForDuplicates(paths []Path) {
+func checkForDuplicates(paths []Path, sortingOrder string) {
+	dupeMap := makeDupeMap(paths)
+	duplicates := sortPaths(getDuplicates(dupeMap), sortingOrder)
+	printDuplicatePaths(duplicates)
+	return
+}
+
+func printDuplicatePaths(paths []Path) {
 	currentSize := int64(-1)
 	currentHash := ""
 
@@ -50,6 +60,41 @@ func checkForDuplicates(paths []Path) {
 	}
 
 	return
+}
+
+func getDuplicates(dupeMap map[string][]Path) (duplicates []Path) {
+
+	for _, val := range dupeMap {
+		if len(val) <= 1 {
+			continue
+		}
+		duplicates = addPathsToDuplicate(duplicates, val)
+	}
+
+	return duplicates
+}
+
+func addPathsToDuplicate(duplicates, array []Path) (updatedDuplicates []Path) {
+	for _, path := range array {
+		duplicates = append(duplicates, path)
+	}
+
+	return duplicates
+}
+
+func makeDupeMap(paths []Path) (dupeMap map[string][]Path) {
+	dupeMap = make(map[string][]Path)
+	for _, path := range paths {
+		_, ok := dupeMap[path.md5Hash]
+		if !ok {
+			pathArray := []Path{path}
+			dupeMap[path.md5Hash] = pathArray
+		} else {
+			dupeMap[path.md5Hash] = append(dupeMap[path.md5Hash], path)
+		}
+	}
+
+	return dupeMap
 }
 
 func printPaths(paths []Path) {
