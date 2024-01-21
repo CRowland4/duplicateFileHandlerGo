@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -18,7 +20,6 @@ type Path struct {
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Println(os.Args)
 		fmt.Println("Directory is not specified")
 		return
 	}
@@ -29,18 +30,81 @@ func main() {
 	sortingOrder := getSortingOrder()
 	paths = sortPaths(paths, sortingOrder)
 	printPaths(paths)
+
+	duplicates := sortPaths(getDuplicates(paths), sortingOrder)
 	if wantsToCheckForDuplicates() {
-		checkForDuplicates(paths, sortingOrder)
+		printDuplicatePaths(duplicates)
+	}
+	if wantsToDeleteDuplicates() {
+		deleteDuplicates(duplicates, getFileNumbersToDelete(duplicates))
 	}
 
 	return
 }
 
-func checkForDuplicates(paths []Path, sortingOrder string) {
-	dupeMap := makeDupeMap(paths)
-	duplicates := sortPaths(getDuplicates(dupeMap), sortingOrder)
-	printDuplicatePaths(duplicates)
+func deleteDuplicates(duplicates []Path, numsToDelete []int) {
+	var freedSpace int64
+	for _, num := range numsToDelete {
+		path := duplicates[num-1]
+		freedSpace += path.size
+		os.Remove(path.absPath)
+	}
+
+	fmt.Print("\nTotal freed up space:", freedSpace, " bytes\n")
 	return
+}
+
+func getFileNumbersToDelete(duplicates []Path) (fileNums []int) {
+	fmt.Println("\nEnter file numbers to delete:")
+	scanner := bufio.NewScanner(os.Stdin)
+
+	for {
+		scanner.Scan()
+		stringNums := strings.Fields(scanner.Text())
+		if areFileNumsValid(duplicates, stringNums) {
+			return convertToIntSlice(stringNums)
+		}
+
+		fmt.Print("\nWrong Format\n\nEnter file numbers to delete:")
+	}
+}
+
+func areFileNumsValid(duplicates []Path, fileNums []string) bool {
+	if len(fileNums) == 0 {
+		return false
+	}
+
+	for _, num := range fileNums {
+		fileNum, ok := strconv.Atoi(num)
+		if ok != nil || (fileNum-1 >= len(duplicates)) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func convertToIntSlice(nums []string) (intNums []int) {
+	for _, num := range nums {
+		intNum, _ := strconv.Atoi(num)
+		intNums = append(intNums, intNum)
+	}
+
+	return intNums
+}
+
+func wantsToDeleteDuplicates() bool {
+	choice := readWord("\nDelete files?\n")
+	for {
+		switch choice {
+		case "yes":
+			return true
+		case "no":
+			return false
+		default:
+			choice = readWord("\nWrong option\n\nDelete files?\n")
+		}
+	}
 }
 
 func printDuplicatePaths(paths []Path) {
@@ -62,8 +126,8 @@ func printDuplicatePaths(paths []Path) {
 	return
 }
 
-func getDuplicates(dupeMap map[string][]Path) (duplicates []Path) {
-
+func getDuplicates(paths []Path) (duplicates []Path) {
+	dupeMap := makeDupeMap(paths)
 	for _, val := range dupeMap {
 		if len(val) <= 1 {
 			continue
