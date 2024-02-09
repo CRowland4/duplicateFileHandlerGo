@@ -13,6 +13,12 @@ import (
 	"strings"
 )
 
+const (
+	Reset  = "\033[0m"
+	Green = "\033[32m"
+	Blue  = "\033[34m"
+)
+
 type Path struct {
 	absPath, md5Hash string
 	size             int64
@@ -20,7 +26,7 @@ type Path struct {
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Println("Directory is not specified")
+		fmt.Println("Usage: /.duplicateFileHandlerGo <directory path>")
 		return
 	}
 
@@ -32,9 +38,14 @@ func main() {
 	printPaths(paths)
 
 	duplicates := sortPaths(getDuplicates(paths), sortingOrder)
-	if wantsToCheckForDuplicates() {
+	wantsToCheckForDuplicates := wantsToCheckForDuplicates()
+	if wantsToCheckForDuplicates && len(duplicates) == 0 {
+		fmt.Println("No duplicates found. Bye!")
+		return
+	} else {
 		printDuplicatePaths(duplicates)
 	}
+
 	if wantsToDeleteDuplicates() {
 		deleteDuplicates(duplicates, getFileNumbersToDelete(duplicates))
 	}
@@ -50,12 +61,12 @@ func deleteDuplicates(duplicates []Path, numsToDelete []int) {
 		os.Remove(path.absPath)
 	}
 
-	fmt.Print("\nTotal freed up space:", freedSpace, " bytes\n")
+	fmt.Print(Blue + "\nTotal freed up space: ", freedSpace, " bytes\n\n" + Reset)
 	return
 }
 
 func getFileNumbersToDelete(duplicates []Path) (fileNums []int) {
-	fmt.Println("\nEnter file numbers to delete:")
+	fmt.Println(Blue + "\nEnter file numbers to delete (space separated integers):" + Reset)
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
@@ -65,7 +76,7 @@ func getFileNumbersToDelete(duplicates []Path) (fileNums []int) {
 			return convertToIntSlice(stringNums)
 		}
 
-		fmt.Print("\nWrong Format\n\nEnter file numbers to delete:")
+		fmt.Print("\nPlease enter space separated integers only, corresponding to the duplicate files above.\n\nEnter file numbers to delete:")
 	}
 }
 
@@ -76,7 +87,7 @@ func areFileNumsValid(duplicates []Path, fileNums []string) bool {
 
 	for _, num := range fileNums {
 		fileNum, ok := strconv.Atoi(num)
-		if ok != nil || (fileNum-1 >= len(duplicates)) {
+		if ok != nil || (fileNum - 1 >= len(duplicates)) {
 			return false
 		}
 	}
@@ -94,15 +105,15 @@ func convertToIntSlice(nums []string) (intNums []int) {
 }
 
 func wantsToDeleteDuplicates() bool {
-	choice := readWord("\nDelete files?\n")
 	for {
+	choice := readWord(Blue + "\nDelete files? (You will be prompted to select which files to delete)\n" + Reset)
 		switch choice {
 		case "yes":
 			return true
 		case "no":
 			return false
 		default:
-			choice = readWord("\nWrong option\n\nDelete files?\n")
+			choice = readWord("\nEnter 'yes' or 'no'\n\n")
 		}
 	}
 }
@@ -113,7 +124,7 @@ func printDuplicatePaths(paths []Path) {
 
 	for i, path := range paths {
 		if path.size != currentSize {
-			fmt.Print("\n", path.size, " bytes\n")
+			fmt.Print(Green + "\n", path.size, " bytes\n" + Reset)
 			currentSize = path.size
 		}
 		if path.md5Hash != currentHash {
@@ -166,7 +177,7 @@ func printPaths(paths []Path) {
 
 	for _, path := range paths {
 		if path.size != currentSize {
-			fmt.Print("\n", path.size, " bytes\n")
+			fmt.Print(Green + "\n", path.size, Reset, " bytes\n")
 			currentSize = path.size
 		}
 		fmt.Println(path.absPath)
@@ -187,7 +198,7 @@ func sortPaths(paths []Path, order string) (sortedPaths []Path) {
 }
 
 func wantsToCheckForDuplicates() (wantsCheck bool) {
-	choice := readWord("\nCheck for duplicates?\n")
+	choice := readWord(Blue + "\nCheck for duplicates?\n" + Reset)
 	for {
 		switch choice {
 		case "yes":
@@ -195,13 +206,13 @@ func wantsToCheckForDuplicates() (wantsCheck bool) {
 		case "no":
 			return false
 		default:
-			choice = readWord("\nWrong Answer\n\nCheck for duplicates?\n")
+			choice = readWord("\nEnter 'yes' or 'no'\n\nCheck for duplicates?\n")
 		}
 	}
 }
 
 func getSortingOrder() (sortingOrder string) {
-	selection := readInt("\nSize sorting options:\n1.Descending\n2.Ascending\n\nEnter a sorting option:\n")
+	selection := readInt("\nSize sorting options:\n1.Descending\n2.Ascending\n\n" + Blue + "Enter a sorting option:\n" + Reset)
 	for {
 		switch selection {
 		case 1:
@@ -209,7 +220,7 @@ func getSortingOrder() (sortingOrder string) {
 		case 2:
 			return "Ascending"
 		default:
-			selection = readInt("\nWrong option\n\nEnter a sorting option:\n")
+			selection = readInt("\nPlease enter an integer representing one of the options\n\nEnter a sorting option:\n")
 		}
 	}
 }
@@ -255,7 +266,7 @@ func readWord(prompt string) (word string) {
 }
 
 func getFormat() (line string) {
-	fmt.Print("Enter file format:\n")
+	fmt.Print(Blue + "Enter file format (enter nothing to search all files):\n" + Reset)
 	fmt.Scanln(&line)
 	return line
 }
